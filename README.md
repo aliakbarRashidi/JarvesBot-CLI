@@ -1,2 +1,2 @@
 # JarvesBot-CLI
-[ Cros | C++ | Qt ] JarvesBot for console
+[ Crossplatform | C++ | Qt ] JarvesBot for console
