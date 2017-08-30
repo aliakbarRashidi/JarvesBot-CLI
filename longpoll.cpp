@@ -11,32 +11,29 @@ void LongPoll::run()
         QString urlString = request.toString();
         QUrl url(urlString);
         answer = Network::sendGET(url);
+        score++;
 
         QVariantList update = parse(answer).toMap().value("result").toList();
 
         if(update.size() < 1)
         {
             qDebug() << "Нет данных в ответе" << score;
-            score++;
+            continue;
         }
-        else
+
+        for(int i = 0; i < update.size(); i++)
         {
-            score++;
+            QVariantMap item = update[i].toMap();
+            QString up_id = item.value("update_id").toString();
 
-            for(int i = 0; i < update.size(); i++)
-            {
-                QVariantMap item = update[i].toMap();
-                QString up_id = item.value("update_id").toString();
+            int tempId = up_id.toInt();
+            tempId++;
+            up_id = QString::number( tempId );
 
-                int tempId = up_id.toInt();
-                tempId++;
-                up_id = QString::number( tempId );
-
-                offset = up_id;
-            }
-
-            emit nonEmptyAnswer( answer );
+            offset = up_id;
         }
+
+        emit nonEmptyAnswer( answer );
 
         QEventLoop loop;
         QTimer::singleShot(5000, &loop, SLOT(quit()));
@@ -71,7 +68,14 @@ void LongPoll::workAnswer(QByteArray answer)
         qDebug() << "    From First name: " << from_fname;
         qDebug() << "    Message: " << mess_text;
 
-        QString text_answ = getAnswerToUser( mess_text, from_id, chat_id, from_nick, from_lname, from_fname );
+        QString text_answ = getAnswerToUser(
+                    mess_text,
+                    from_id,
+                    chat_id,
+                    from_nick,
+                    from_lname,
+                    from_fname
+        );
 
         QUrlQuery request("https://api.telegram.org/bot"+token+"/sendMessage?chat_id="+chat_id);
         request.addQueryItem("text", text_answ);
@@ -87,138 +91,44 @@ void LongPoll::workAnswer(QByteArray answer)
     }
 }
 
-QString LongPoll::getAnswerToUser(const QString &mess_text, const QString &user_id, const QString& chat_id, const QString &user_nick, const QString &user_lname, const QString &user_fname)
+QString LongPoll::getAnswerToUser(const QString &mess_text, const QString &user_id,
+                                  const QString& chat_id, const QString &user_nick,
+                                  const QString &user_lname, const QString &user_fname)
 {
     QString botAnswer = "";
 
-    if( mess_text == "/start" )
-        botAnswer = "Добро пожаловать! Тебя приветствует Telegram Bot Jarves. "
-                    "У меня нет конкретной цели и задачи. Я просто буду тебе помогать.";
-    else if( mess_text == "/rand")
-        botAnswer = QString::number( rand()%100 );
-    else if( mess_text == "Привет")
-        botAnswer = "Привет, " + user_fname;
-    else if(mess_text == "Погода" || mess_text == "/weather")
+    if(mess_text == "start tv")
     {
-        QUrlQuery request("http://shotinleg.xyz/api/getWeather.php");
-        QString urlString = request.toString();
-        QUrl url(urlString);
-        QByteArray answer = Network::sendGET(url);
-        qDebug() << answer;
-        QVariantMap info = parse(answer).toMap().value("result").toMap();
-        QString city = info.value("city").toString();
-        QString degr = info.value("degr").toString();
-        QString osad = info.value("osad").toString();
-
-        botAnswer = "Погода в городе "+city+": \n" + degr + "\n" + osad;
+        botAnswer = startTeamViewer();
     }
-    else if(mess_text == "Новости" || mess_text == "/newshitech")
+    else if(mess_text == "stop tv")
     {
-        QUrlQuery request("http://shotinleg.xyz/api/getNews.php");
-        QString urlString = request.toString();
-        QUrl url(urlString);
-        QByteArray answer = Network::sendGET(url);
-        qDebug() << answer;
-        QVariantList info = parse(answer).toMap().value("result").toList();
-
-        for(int i = 0; i < info.size(); i++)
-        {
-            QVariantMap item = info[i].toMap();
-            QString title = item.value("title").toString();
-            QString link = item.value("link").toString();
-            QString desc = item.value("desc").toString();
-            QString time = item.value("time").toString();
-
-            botAnswer += title + "\n\n" +desc + "\n\nВремя: " + time + "\n******************************\n";
-        }
-    }
-    else if(mess_text == "Расписание Адамант" || mess_text == "/listadamant")
-    {
-        QUrlQuery request("http://shotinleg.xyz/api/getAdamant.php");
-        QString urlString = request.toString();
-        QUrl url(urlString);
-        QByteArray answer = Network:: sendGET(url);
-        qDebug() << answer;
-        QVariantList info = parse(answer).toMap().value("result").toList();
-
-        for(int i = 0; i < info.size(); i++)
-        {
-            QVariantMap item = info[i].toMap();
-            QString name = item.value("name").toString();
-            QString time = item.value("time").toString();
-            QString place = item.value("place").toString();
-
-            botAnswer += name + "\n" + time + "\n" + place + "\n******************************\n";
-        }
-    }
-
-    if( user_id == "56854054" )
-    {
-        if( mess_text == "/today" )
-            botAnswer = getInfoToday();
-        else if( mess_text.contains( QRegExp( "^[0-9]" ) ) )
-            botAnswer = setInfo( mess_text );
+        botAnswer = stopTeamViewer();
     }
 
     return botAnswer;
 }
 
-QString LongPoll::getInfoToday()
+QString LongPoll::startTeamViewer()
 {
-    QString infoToday = "";
+    QString program = "/Applications/TeamViewer.app/Contents/MacOS/TeamViewer";
+    QStringList arguments;
+    //arguments << "-style" << "fusion";
 
-    QFile file ("work.txt");
+    QProcess *myProcess = new QProcess(this);
+    myProcess->start(program, arguments);
 
-    QDate date;
-    int today = date.currentDate().year() * 10000;
-    today += date.currentDate().month() * 100;
-    today += date.currentDate().day();
-
-    QString s_today = QString::number( today );
-
-    if( file.open(QIODevice::ReadWrite) )
-    {
-        QVariantMap parametrs;
-        QDataStream stream(&file);
-
-        stream >> parametrs;
-        file.close();
-
-        if( parametrs.contains(s_today) )
-        {
-            infoToday = parametrs.value( s_today ).toString();
-        }
-    }
-
-    return "Информация на сегодня: \n\n" + infoToday;
+    return "TeamViewer starting";
 }
 
-QString LongPoll::setInfo(const QString &info)
+QString LongPoll::stopTeamViewer()
 {
-    QString botAnswer = "Не удалось записать.";
+    QString program = "/usr/bin/killall";
+    QStringList arguments;
+    arguments << "TeamViewer";
 
-    QFile file ("work.txt");
+    QProcess *myProcess = new QProcess(this);
+    myProcess->start(program, arguments);
 
-    QString date = info.split("=")[0];
-    QString infor = info.split("=")[1];
-
-
-    if( file.open(QIODevice::ReadWrite) )
-    {
-        QVariantMap parametrs;
-        QDataStream stream(&file);
-
-        parametrs.insert(date, infor);
-
-        stream << parametrs;
-
-        botAnswer = "Записанно";
-
-        file.close();
-    }
-
-    return botAnswer;
+    return "TeamViewer stoping";
 }
-
-
-//"{\"ok\":true,\"result\":[{\"update_id\":840858210,\n\"message\":{\"message_id\":565,\"from\":{\"id\":56854054,\"first_name\":\"\\u0410\\u043d\\u0442\\u043e\\u043d\",\"last_name\":\"\\u0417\\u0432\\u043e\\u043d\\u0430\\u0440\\u0435\\u0432\",\"username\":\"shotInLeg\"},\"chat\":{\"id\":56854054,\"first_name\":\"\\u0410\\u043d\\u0442\\u043e\\u043d\",\"last_name\":\"\\u0417\\u0432\\u043e\\u043d\\u0430\\u0440\\u0435\\u0432\",\"username\":\"shotInLeg\",\"type\":\"private\"},\"date\":1472914022,\"text\":\"\\u041f\\u0440\\u0438\\u0432\\u0435\\u0442\"}}]}"

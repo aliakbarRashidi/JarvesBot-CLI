@@ -23,6 +23,7 @@
 #include <QDataStream>
 
 #include <QDebug>
+#include <QProcess>
 
 #include "Json/json.h"
 #include "network.h"
@@ -43,9 +44,13 @@ private slots:
     void workAnswer( QByteArray answer );
 
 private:
-    QString getAnswerToUser( const QString& mess_text, const QString& user_id, const QString& chat_id, const QString& user_nick, const QString& user_lname, const QString& user_fname );
-    QString getInfoToday();
-    QString setInfo( const QString& info );
+    QString getAnswerToUser( const QString& mess_text, const QString& user_id,
+                             const QString& chat_id, const QString& user_nick,
+                             const QString& user_lname, const QString& user_fname );
+
+    QString startTeamViewer();
+    QString stopTeamViewer();
+    QString startExec();
 
 private:
     QString token;
